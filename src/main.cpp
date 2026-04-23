@@ -41,6 +41,7 @@ bool           ohDisplayOnly         = false;
 bool           ugDisplayOnly         = false;
 bool           ugIgnoreForOH         = false;
 bool           buzzerDelayEnabled    = true;
+uint8_t        lcdBacklightMode      = LCD_BL_AUTO;
 
 Preferences    preferences;
 

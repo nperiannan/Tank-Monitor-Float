@@ -14,6 +14,7 @@
 #include "Scheduler.h"
 #include "RTCManager.h"
 #include "WiFiManager.h"
+#include "Display.h"
 #include <ArduinoJson.h>
 
 // ---------------------------------------------------------------------------
@@ -28,10 +29,12 @@ static char s_user[32];
 static char s_pass[64];
 static char s_topicStatus[64];
 static char s_topicControl[64];
+static char s_topicLogs[64];
 static char s_clientId[32];
 
-static unsigned long s_lastPublishMs   = 0;
-static unsigned long s_lastReconnectMs = 0;
+static unsigned long s_lastPublishMs    = 0;
+static unsigned long s_lastReconnectMs  = 0;
+static unsigned long s_lastLogPublishMs = 0;
 
 // ---------------------------------------------------------------------------
 // NVS helpers
@@ -52,6 +55,7 @@ static void loadConfig() {
 
     snprintf(s_topicStatus,  sizeof(s_topicStatus),  "tankmonitor/%s/status",  location.c_str());
     snprintf(s_topicControl, sizeof(s_topicControl), "tankmonitor/%s/control", location.c_str());
+    snprintf(s_topicLogs,    sizeof(s_topicLogs),    "tankmonitor/%s/logs",    location.c_str());
     snprintf(s_clientId,     sizeof(s_clientId),     "esp32_%s",               location.c_str());
 }
 
@@ -74,6 +78,9 @@ static void seedDefaultsIfEmpty() {
 }
 
 // ---------------------------------------------------------------------------
+// Forward declarations
+static void publishMQTTLogs();
+
 // Pending command queue — executed from loop(), not from callback stack
 // ---------------------------------------------------------------------------
 struct PendingCmd {
@@ -161,9 +168,23 @@ static void processPendingMQTT() {
         if (changed) { saveMotorConfig(); Log(INFO, "[MQTT] set_setting " + String(key) + "=" + String(val)); }
         else          Log(WARN, "[MQTT] set_setting unknown key: " + String(key));
     }
+    else if (strcmp(cmd, "set_lcd_mode") == 0) {
+        const char* mode = doc["mode"] | "";
+        uint8_t newMode = LCD_BL_AUTO;
+        if      (strcmp(mode, "always_on")  == 0) newMode = LCD_BL_ALWAYS_ON;
+        else if (strcmp(mode, "always_off") == 0) newMode = LCD_BL_ALWAYS_OFF;
+        lcdBacklightMode = newMode;
+        saveMotorConfig();
+        applyBacklightMode();
+        Log(INFO, "[MQTT] set_lcd_mode=" + String(mode));
+    }
     else if (strcmp(cmd, "sync_ntp") == 0) {
         synchronizeTime();
         Log(INFO, "[MQTT] sync_ntp triggered");
+    }
+    else if (strcmp(cmd, "get_logs") == 0) {
+        publishMQTTLogs();
+        Log(INFO, "[MQTT] get_logs: log snapshot published");
     }
     else if (strcmp(cmd, "ota_start") == 0) {
         const char* url = doc["url"] | "";
@@ -263,7 +284,7 @@ void initMQTT() {
     s_mqtt.setCallback(onMessage);
     s_mqtt.setKeepAlive(60);
     s_mqtt.setSocketTimeout(10);
-    s_mqtt.setBufferSize(1024);
+    s_mqtt.setBufferSize(4096);  // large enough for status + log payloads
 
     Log(INFO, "[MQTT] Init. Broker=" + String(s_broker) + ":" + String(s_port) + " topic=" + String(s_topicStatus));
 }
@@ -289,6 +310,12 @@ void mqttLoop() {
     if (now - s_lastPublishMs >= MQTT_PUBLISH_MS) {
         s_lastPublishMs = now;
         publishMQTTStatus();
+    }
+
+    // Publish logs every 60 s (independent of status interval)
+    if (now - s_lastLogPublishMs >= 60000UL) {
+        s_lastLogPublishMs = now;
+        publishMQTTLogs();
     }
 }
 
@@ -322,7 +349,7 @@ void publishMQTTStatus() {
     }
     strcat(schedJson, "]");
 
-    char payload[1024];
+    char payload[1152];
     snprintf(payload, sizeof(payload),
         "{\"oh_state\":\"%s\",\"ug_state\":\"%s\","
         "\"oh_motor\":%s,\"ug_motor\":%s,"
@@ -331,6 +358,7 @@ void publishMQTTStatus() {
         "\"time\":\"%s\","
         "\"oh_disp_only\":%s,\"ug_disp_only\":%s,"
         "\"ug_ignore\":%s,\"buzzer_delay\":%s,"
+        "\"lcd_bl_mode\":%u,"
         "\"schedules\":%s}",
         tankStateStr(ohTankState),
         tankStateStr(ugTankState),
@@ -345,6 +373,7 @@ void publishMQTTStatus() {
         ugDisplayOnly      ? "true" : "false",
         ugIgnoreForOH      ? "true" : "false",
         buzzerDelayEnabled ? "true" : "false",
+        (unsigned)lcdBacklightMode,
         schedJson
     );
 
@@ -352,5 +381,16 @@ void publishMQTTStatus() {
         Log(INFO, "[MQTT] Published status");
     } else {
         Log(WARN, "[MQTT] Publish failed (buffer too small?)");
+    }
+}
+
+// Publish the in-memory log ring buffer to the logs topic (last 30 entries)
+static void publishMQTTLogs() {
+    if (!s_mqtt.connected()) return;
+    String logsJson = getLogsJson(30);
+    // Wrap in an object so consumers can distinguish from plain arrays
+    String payload = "{\"logs\":" + logsJson + "}";
+    if (!s_mqtt.publish(s_topicLogs, payload.c_str(), false)) {
+        Log(WARN, "[MQTT] Log publish failed");
     }
 }

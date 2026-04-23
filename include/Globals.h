@@ -56,10 +56,11 @@ extern String wifiSSID;               // Current connected SSID
 extern int    wifiRSSI;               // Current WiFi RSSI
 
 // Runtime configuration (loaded from NVS at boot, also written back on change)
-extern bool ohDisplayOnly;    // True → do NOT drive OH relay; monitor only
-extern bool ugDisplayOnly;    // True → do NOT drive UG relay; monitor only
-extern bool ugIgnoreForOH;    // True → start OH motor even if UG tank is LOW
-extern bool buzzerDelayEnabled; // True → buzz before motor starts
+extern bool    ohDisplayOnly;       // True → do NOT drive OH relay; monitor only
+extern bool    ugDisplayOnly;       // True → do NOT drive UG relay; monitor only
+extern bool    ugIgnoreForOH;       // True → start OH motor even if UG tank is LOW
+extern bool    buzzerDelayEnabled;  // True → buzz before motor starts
+extern uint8_t lcdBacklightMode;    // LCD_BL_AUTO / LCD_BL_ALWAYS_ON / LCD_BL_ALWAYS_OFF
 
 // Shared NVS preferences object (opened/closed per use in each module)
 extern Preferences preferences;

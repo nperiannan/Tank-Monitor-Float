@@ -4,7 +4,7 @@
 // =============================================================================
 //                              FIRMWARE VERSION
 // =============================================================================
-#define FW_VERSION "1.2.0"
+#define FW_VERSION "1.3.0"
 
 // =============================================================================
 //                              I2C CONFIGURATION
@@ -138,6 +138,12 @@
 #define NVS_KEY_UG_IGNORE      "ug_ignore"       // Ignore UG state when deciding OH motor
 #define NVS_KEY_BUZZER_DELAY   "buzzer_delay"    // Buzz before motor start
 #define NVS_KEY_BLE_ENABLED    "ble_enabled"
+#define NVS_KEY_LCD_BL_MODE    "lcd_bl_mode"
+
+// LCD backlight modes
+#define LCD_BL_AUTO       0   // Off 7:00 AM – 5:30 PM, On at night (default)
+#define LCD_BL_ALWAYS_ON  1   // Always on
+#define LCD_BL_ALWAYS_OFF 2   // Always off
 
 // =============================================================================
 //                              EEPROM (AT24C512 / 24T512) - I2C

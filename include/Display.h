@@ -21,4 +21,9 @@ void setLcdBacklight(bool on);
 // Returns true when the LCD is currently backlit.
 bool isLcdBacklightOn();
 
+// Apply the stored lcdBacklightMode (auto / always-on / always-off).
+// Called automatically every 30 s from updateDisplay(); can also be
+// called explicitly after the mode changes via MQTT.
+void applyBacklightMode();
+
 #endif // DISPLAY_H

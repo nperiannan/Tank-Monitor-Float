@@ -37,23 +37,26 @@ void initMotorPins() {
 
 void loadMotorConfig() {
     preferences.begin(NVS_MOTOR_NS, true);
-    ohDisplayOnly    = preferences.getBool(NVS_KEY_OH_DISP_ONLY, false);
-    ugDisplayOnly    = preferences.getBool(NVS_KEY_UG_DISP_ONLY, false);
-    ugIgnoreForOH    = preferences.getBool(NVS_KEY_UG_IGNORE,    false);
-    buzzerDelayEnabled = preferences.getBool(NVS_KEY_BUZZER_DELAY, true);
+    ohDisplayOnly      = preferences.getBool (NVS_KEY_OH_DISP_ONLY, false);
+    ugDisplayOnly      = preferences.getBool (NVS_KEY_UG_DISP_ONLY, false);
+    ugIgnoreForOH      = preferences.getBool (NVS_KEY_UG_IGNORE,    false);
+    buzzerDelayEnabled = preferences.getBool (NVS_KEY_BUZZER_DELAY, true);
+    lcdBacklightMode   = preferences.getUChar(NVS_KEY_LCD_BL_MODE,  LCD_BL_AUTO);
     preferences.end();
     Log(INFO, "[Motor] Config loaded: ohDisp=" + String(ohDisplayOnly)
               + " ugDisp=" + String(ugDisplayOnly)
               + " ugIgnore=" + String(ugIgnoreForOH)
-              + " buzzerDelay=" + String(buzzerDelayEnabled));
+              + " buzzerDelay=" + String(buzzerDelayEnabled)
+              + " lcdBl=" + String(lcdBacklightMode));
 }
 
 void saveMotorConfig() {
     preferences.begin(NVS_MOTOR_NS, false);
-    preferences.putBool(NVS_KEY_OH_DISP_ONLY, ohDisplayOnly);
-    preferences.putBool(NVS_KEY_UG_DISP_ONLY, ugDisplayOnly);
-    preferences.putBool(NVS_KEY_UG_IGNORE,    ugIgnoreForOH);
-    preferences.putBool(NVS_KEY_BUZZER_DELAY, buzzerDelayEnabled);
+    preferences.putBool (NVS_KEY_OH_DISP_ONLY, ohDisplayOnly);
+    preferences.putBool (NVS_KEY_UG_DISP_ONLY, ugDisplayOnly);
+    preferences.putBool (NVS_KEY_UG_IGNORE,    ugIgnoreForOH);
+    preferences.putBool (NVS_KEY_BUZZER_DELAY, buzzerDelayEnabled);
+    preferences.putUChar(NVS_KEY_LCD_BL_MODE,  lcdBacklightMode);
     preferences.end();
     Log(INFO, "[Motor] Config saved");
 }

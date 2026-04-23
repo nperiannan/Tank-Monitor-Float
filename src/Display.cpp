@@ -7,6 +7,7 @@
 #include <Wire.h>
 #include <WiFi.h>
 #include <LiquidCrystal_I2C.h>
+#include <time.h>
 
 // Screen indices
 #define SCREEN_OH_TANK   0
@@ -23,6 +24,7 @@ static bool     pairingPinShown = false;
 
 static int           currentScreen    = 0;
 static unsigned long lastScreenChange = 0;
+static unsigned long lastBlCheckMs    = 0;  // last backlight mode check
 
 // ---------------------------------------------------------------------------
 //  Helpers
@@ -121,6 +123,7 @@ void initDisplay() {
     lcd.print("  Float v1.0  ");
     lcdInitOk   = true;
     backlightOn = true;
+    applyBacklightMode();  // apply persisted mode at startup
     Log(INFO, "[Display] LCD initialised at 0x" + String(LCD_ADDRESS, HEX));
 }
 
@@ -128,6 +131,13 @@ void updateDisplay() {
     if (!lcdInitOk || pairingPinShown) return;
 
     unsigned long now = millis();
+
+    // Re-check backlight every 30 s (auto mode follows time-of-day)
+    if (now - lastBlCheckMs >= 30000UL || lastBlCheckMs == 0) {
+        lastBlCheckMs = now;
+        applyBacklightMode();
+    }
+
     if (now - lastScreenChange >= LCD_SCREEN_DURATION_MS) {
         currentScreen = (currentScreen + 1) % SCREEN_COUNT;
         lastScreenChange = now;
@@ -163,4 +173,22 @@ void setLcdBacklight(bool on) {
 
 bool isLcdBacklightOn() {
     return backlightOn;
+}
+
+// Apply the current lcdBacklightMode — called at startup and every 30 s
+void applyBacklightMode() {
+    if (!lcdInitOk) return;
+    if (lcdBacklightMode == LCD_BL_ALWAYS_ON) {
+        setLcdBacklight(true);
+    } else if (lcdBacklightMode == LCD_BL_ALWAYS_OFF) {
+        setLcdBacklight(false);
+    } else {
+        // AUTO: off during daytime 07:00–17:30, on at night
+        struct tm ti;
+        if (getLocalTime(&ti, 100)) {
+            int totalMin = ti.tm_hour * 60 + ti.tm_min;
+            bool isDaytime = (totalMin >= 7 * 60 && totalMin < 17 * 60 + 30);
+            setLcdBacklight(!isDaytime);
+        }
+    }
 }
